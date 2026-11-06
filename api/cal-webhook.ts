@@ -40,6 +40,16 @@ export async function POST(request: Request) {
 
   if (!isValid) return unauthorized401Response();
 
+  let results;
+  try {
+    results = JSON.parse(rawBody);
+  } catch {
+    return new Response("bad request", {
+      status: 400,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+
   return new Response("ok", {
     status: 200,
     headers: { "Content-Type": "text/plain" },
