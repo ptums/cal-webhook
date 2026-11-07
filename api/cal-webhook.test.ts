@@ -10,7 +10,7 @@ function signedRequest(body: string): Request {
   const signature = createHmac("sha256", CAL_WEBHOOK_SECRET)
     .update(body)
     .digest("hex");
-  console.log(signature);
+
   return new Request("http://localhost/api/cal-webhook", {
     method: "POST",
     headers: {
@@ -49,14 +49,43 @@ describe("POST /api/cal-webhook", () => {
 
     await POST(sr);
 
-    // TODO: expect fakeFetch to be called 1 time
     expect(fakeFetch).toHaveBeenCalledTimes(1);
     const sentBody = String(fakeFetch.mock.calls[0][1]?.body);
-    // TODO: expect sentBody to contain "booking_created"
     expect(sentBody).toContain("booking_created");
-    // TODO: expect sentBody NOT to contain the name or the email
     expect(sentBody).not.toContain("Test Person");
     expect(sentBody).not.toContain("test@example.com");
     expect(sentBody).toContain("2026-11-05T15:00:00.000Z");
+
+    const sent = JSON.parse(sentBody);
+    expect(sent.properties.$process_person_profile).toBe(false);
+  });
+
+  it("sends distinct_id", async () => {
+    const fakeFetch = vi.fn(
+      async (_url: string, _init?: RequestInit) => new Response("ok"),
+    );
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+    const sr1 = signedRequest(body);
+    const sr2 = signedRequest(body);
+
+    await POST(sr1);
+    await POST(sr2);
+
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+    const sentBody1 = String(fakeFetch.mock.calls[0][1]?.body);
+    const sentBody2 = String(fakeFetch.mock.calls[1][1]?.body);
+
+    const sent1 = JSON.parse(sentBody1);
+    const sent2 = JSON.parse(sentBody2);
+
+    expect(sent1.distinct_id).not.toBe(sent2.distinct_id);
   });
 });

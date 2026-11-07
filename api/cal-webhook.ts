@@ -58,8 +58,11 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         api_key: process.env.POSTHOG_API_KEY,
         event: triggerEvent.toLowerCase(),
-        distinct_id: "cal-webhook",
+        distinct_id: crypto.randomUUID(),
         timestamp: createdAt,
+        properties: {
+          $process_person_profile: false,
+        },
       }),
     });
   }
