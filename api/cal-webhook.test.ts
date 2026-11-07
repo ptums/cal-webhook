@@ -88,4 +88,42 @@ describe("POST /api/cal-webhook", () => {
 
     expect(sent1.distinct_id).not.toBe(sent2.distinct_id);
   });
+
+  it("returns 502 when PostHog fails, so Cal.com retries", async () => {
+    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
+      return new Response("error", { status: 500 });
+    });
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+    const sr = signedRequest(body);
+
+    const response = await POST(sr);
+    expect(response.status).toBe(502);
+  });
+
+  it("returns 502 when PostHog can't be reached", async () => {
+    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+    const sr = signedRequest(body);
+
+    const response = await POST(sr);
+    expect(response.status).toBe(502);
+  });
 });
