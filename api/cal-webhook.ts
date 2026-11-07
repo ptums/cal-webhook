@@ -50,6 +50,20 @@ export async function POST(request: Request) {
     });
   }
 
+  if (results.triggerEvent === "BOOKING_CREATED") {
+    const { triggerEvent, createdAt } = results;
+    await fetch(`${process.env.POSTHOG_HOST}/i/v0/e/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: process.env.POSTHOG_API_KEY,
+        event: triggerEvent.toLowerCase(),
+        distinct_id: "cal-webhook",
+        timestamp: createdAt,
+      }),
+    });
+  }
+
   return new Response("ok", {
     status: 200,
     headers: { "Content-Type": "text/plain" },

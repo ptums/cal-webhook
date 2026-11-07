@@ -50,10 +50,13 @@ describe("POST /api/cal-webhook", () => {
     await POST(sr);
 
     // TODO: expect fakeFetch to be called 1 time
-    // expect(fakeFetch).toHaveBeenCalledTimes(1);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
     const sentBody = String(fakeFetch.mock.calls[0][1]?.body);
     // TODO: expect sentBody to contain "booking_created"
     expect(sentBody).toContain("booking_created");
     // TODO: expect sentBody NOT to contain the name or the email
+    expect(sentBody).not.toContain("Test Person");
+    expect(sentBody).not.toContain("test@example.com");
+    expect(sentBody).toContain("2026-11-05T15:00:00.000Z");
   });
 });
