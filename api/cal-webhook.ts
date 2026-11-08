@@ -77,8 +77,8 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             api_key: process.env.POSTHOG_API_KEY,
             event: triggerEvent.toLowerCase(),
-            id: crypto.randomUUID(),
             uuid: id,
+            distinct_id: id,
             timestamp: createdAt,
             properties: {
               $process_person_profile: false,

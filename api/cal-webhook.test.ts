@@ -82,6 +82,7 @@ describe("POST /api/cal-webhook", () => {
          triggerEvent: "BOOKING_CREATED",
          createdAt: "2026-11-05T15:00:00.000Z",
          payload: {
+           
            uid: "booking-2",
            attendees: [{ name: "Test Person", email: "test@example.com" }],
          },
@@ -99,7 +100,8 @@ describe("POST /api/cal-webhook", () => {
     const sent1 = JSON.parse(sentBody1);
     const sent2 = JSON.parse(sentBody2);
 
-    expect(sent1.distinct_id).toBe(sent2.distinct_id);
+    expect(sent1.distinct_id).toBeDefined();
+    expect(sent1.distinct_id).not.toBe(sent2.distinct_id);
   });
 
   it("4. returns 502 when PostHog fails, so Cal.com retries", async () => {
