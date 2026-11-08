@@ -82,6 +82,7 @@ export async function POST(request: Request) {
             timestamp: createdAt,
             properties: {
               $process_person_profile: false,
+              $geoip_disable: true
             },
           }),
         },

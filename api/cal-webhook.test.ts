@@ -59,6 +59,8 @@ describe("POST /api/cal-webhook", () => {
 
     const sent = JSON.parse(sentBody);
     expect(sent.properties.$process_person_profile).toBe(false);
+
+    expect(sent.properties.$geoip_disable).toBe(true);
   });
 
   it("3. sends a different distinct_id for each booking", async () => {
