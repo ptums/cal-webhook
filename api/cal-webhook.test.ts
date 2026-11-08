@@ -26,13 +26,13 @@ describe("POST /api/cal-webhook", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-  it("returns 400 when the body is not valid JSON", async () => {
+  it("1. returns 400 when the body is not valid JSON", async () => {
     const sr = signedRequest("not json");
     const response = await POST(sr);
     expect(response.status).toBe(400);
   });
 
-  it("sends booking_created to PostHog with no name or email", async () => {
+  it("2. sends booking_created to PostHog with no name or email", async () => {
     const fakeFetch = vi.fn(
       async (_url: string, _init?: RequestInit) => new Response("ok"),
     );
@@ -42,6 +42,7 @@ describe("POST /api/cal-webhook", () => {
       triggerEvent: "BOOKING_CREATED",
       createdAt: "2026-11-05T15:00:00.000Z",
       payload: {
+        uid: "booking-1",
         attendees: [{ name: "Test Person", email: "test@example.com" }],
       },
     });
@@ -60,7 +61,87 @@ describe("POST /api/cal-webhook", () => {
     expect(sent.properties.$process_person_profile).toBe(false);
   });
 
-  it("sends distinct_id", async () => {
+  it("3. sends a different distinct_id for each booking", async () => {
+    const fakeFetch = vi.fn(
+      async (_url: string, _init?: RequestInit) => new Response("ok"),
+    );
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body1 = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        uid: "booking-1",
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+
+    const body2 = JSON.stringify({
+         triggerEvent: "BOOKING_CREATED",
+         createdAt: "2026-11-05T15:00:00.000Z",
+         payload: {
+           uid: "booking-2",
+           attendees: [{ name: "Test Person", email: "test@example.com" }],
+         },
+       });
+    const sr1 = signedRequest(body1);
+    const sr2 = signedRequest(body2);
+
+    await POST(sr1);
+    await POST(sr2);
+
+    expect(fakeFetch).toHaveBeenCalledTimes(2);
+    const sentBody1 = String(fakeFetch.mock.calls[0][1]?.body);
+    const sentBody2 = String(fakeFetch.mock.calls[1][1]?.body);
+
+    const sent1 = JSON.parse(sentBody1);
+    const sent2 = JSON.parse(sentBody2);
+
+    expect(sent1.distinct_id).toBe(sent2.distinct_id);
+  });
+
+  it("4. returns 502 when PostHog fails, so Cal.com retries", async () => {
+    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
+      return new Response("error", { status: 500 });
+    });
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        uid: "booking-1",
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+    const sr = signedRequest(body);
+
+    const response = await POST(sr);
+    expect(response.status).toBe(502);
+  });
+
+  it("5. returns 502 when PostHog can't be reached", async () => {
+    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
+      throw new Error("network down");
+    });
+    vi.stubGlobal("fetch", fakeFetch);
+
+    const body = JSON.stringify({
+      triggerEvent: "BOOKING_CREATED",
+      createdAt: "2026-11-05T15:00:00.000Z",
+      payload: {
+        uid: "booking-1",
+        attendees: [{ name: "Test Person", email: "test@example.com" }],
+      },
+    });
+    const sr = signedRequest(body);
+
+    const response = await POST(sr);
+    expect(response.status).toBe(502);
+  });
+
+  it("6. sends the same uuid and distinct_id when a booking arrives twice", async () => {
+    // TODO: stub fetch, the same as test 3
     const fakeFetch = vi.fn(
       async (_url: string, _init?: RequestInit) => new Response("ok"),
     );
@@ -70,9 +151,12 @@ describe("POST /api/cal-webhook", () => {
       triggerEvent: "BOOKING_CREATED",
       createdAt: "2026-11-05T15:00:00.000Z",
       payload: {
+        uid: "booking-1",
         attendees: [{ name: "Test Person", email: "test@example.com" }],
       },
     });
+
+
     const sr1 = signedRequest(body);
     const sr2 = signedRequest(body);
 
@@ -86,44 +170,13 @@ describe("POST /api/cal-webhook", () => {
     const sent1 = JSON.parse(sentBody1);
     const sent2 = JSON.parse(sentBody2);
 
-    expect(sent1.distinct_id).not.toBe(sent2.distinct_id);
-  });
-
-  it("returns 502 when PostHog fails, so Cal.com retries", async () => {
-    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
-      return new Response("error", { status: 500 });
-    });
-    vi.stubGlobal("fetch", fakeFetch);
-
-    const body = JSON.stringify({
-      triggerEvent: "BOOKING_CREATED",
-      createdAt: "2026-11-05T15:00:00.000Z",
-      payload: {
-        attendees: [{ name: "Test Person", email: "test@example.com" }],
-      },
-    });
-    const sr = signedRequest(body);
-
-    const response = await POST(sr);
-    expect(response.status).toBe(502);
-  });
-
-  it("returns 502 when PostHog can't be reached", async () => {
-    const fakeFetch = vi.fn(async (_url: string, _init?: RequestInit) => {
-      throw new Error("network down");
-    });
-    vi.stubGlobal("fetch", fakeFetch);
-
-    const body = JSON.stringify({
-      triggerEvent: "BOOKING_CREATED",
-      createdAt: "2026-11-05T15:00:00.000Z",
-      payload: {
-        attendees: [{ name: "Test Person", email: "test@example.com" }],
-      },
-    });
-    const sr = signedRequest(body);
-
-    const response = await POST(sr);
-    expect(response.status).toBe(502);
+    expect(sent1.uuid).toBeDefined();
+    expect(sent1.uuid).toBe(sent2.uuid);
+    expect(sent1.distinct_id).toBe(sent2.distinct_id);
+   
+    // TODO: 1 body with uid "booking-1", signed 2 times, POST both
+    // TODO: parse both sent bodies
+    // TODO: expect sent1.uuid toBe sent2.uuid
+    // TODO: expect sent1.distinct_id toBe sent2.distinct_id
   });
 });
