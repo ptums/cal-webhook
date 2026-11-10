@@ -6,9 +6,8 @@ set -euo pipefail
 MODE="${1:-valid}"
 URL="http://localhost:3000/api/cal-webhook"
 SECRET=$(grep CAL_WEBHOOK_SECRET .env.local | cut -d= -f2)
-BODY='{"triggerEvent":"BOOKING_CREATED"}'
+BODY='{"triggerEvent":"BOOKING_CREATED","createdAt":"2026-11-05T15:00:00.000Z","payload":{"uid":"local-test-1"}}'
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')
-echo $SIG
 case "$MODE" in
   valid)    curl -i -X POST "$URL" -H 'Content-Type: application/json' -H "x-cal-signature-256: $SIG" -d "$BODY" ;;
   nosig)    curl -i -X POST "$URL" -H 'Content-Type: application/json' -d "$BODY" ;;
