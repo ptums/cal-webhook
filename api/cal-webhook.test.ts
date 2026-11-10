@@ -5,7 +5,6 @@ import { POST } from "./cal-webhook";
 const CAL_WEBHOOK_SECRET = "test-secret";
 process.env.CAL_WEBHOOK_SECRET = CAL_WEBHOOK_SECRET;
 
-// Step 4: the helper
 function signedRequest(body: string): Request {
   const signature = createHmac("sha256", CAL_WEBHOOK_SECRET)
     .update(body)
@@ -21,7 +20,6 @@ function signedRequest(body: string): Request {
   });
 }
 
-// Step 5: the test
 describe("POST /api/cal-webhook", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -82,7 +80,7 @@ describe("POST /api/cal-webhook", () => {
          triggerEvent: "BOOKING_CREATED",
          createdAt: "2026-11-05T15:00:00.000Z",
          payload: {
-           
+
            uid: "booking-2",
            attendees: [{ name: "Test Person", email: "test@example.com" }],
          },
@@ -145,7 +143,6 @@ describe("POST /api/cal-webhook", () => {
   });
 
   it("6. sends the same uuid and distinct_id when a booking arrives twice", async () => {
-    // TODO: stub fetch, the same as test 3
     const fakeFetch = vi.fn(
       async (_url: string, _init?: RequestInit) => new Response("ok"),
     );
@@ -177,10 +174,5 @@ describe("POST /api/cal-webhook", () => {
     expect(sent1.uuid).toBeDefined();
     expect(sent1.uuid).toBe(sent2.uuid);
     expect(sent1.distinct_id).toBe(sent2.distinct_id);
-   
-    // TODO: 1 body with uid "booking-1", signed 2 times, POST both
-    // TODO: parse both sent bodies
-    // TODO: expect sent1.uuid toBe sent2.uuid
-    // TODO: expect sent1.distinct_id toBe sent2.distinct_id
   });
 });
